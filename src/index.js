@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
 const keepAlive = require('./keepAlive');
+const { initDb } = require('./database/db');
 
 // starts the little "I'm alive" webpage Replit needs pinged to stay awake
 keepAlive();
@@ -58,5 +59,8 @@ for (const file of eventFiles) {
 	}
 }
 
-// finally, actually log in using the secret token
-client.login(process.env.DISCORD_TOKEN);
+// gotta make sure our tables exist before the bot starts taking commands, otherwise
+// the first /rank or /warn someone runs could crash trying to hit a table that isn't there yet
+initDb()
+	.then(() => client.login(process.env.DISCORD_TOKEN))
+	.catch(error => console.error('Could not set up the database:', error));
