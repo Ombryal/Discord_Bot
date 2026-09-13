@@ -2,6 +2,10 @@ require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
+const keepAlive = require('./keepAlive');
+
+// starts the little "I'm alive" webpage Replit needs pinged to stay awake
+keepAlive();
 
 // this is basically "turning the bot on" and telling Discord what kind of stuff we want to listen for
 const client = new Client({
