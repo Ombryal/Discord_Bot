@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { baseEmbed } = require('../../utils/embeds');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -24,14 +25,20 @@ module.exports = {
 			return interaction.reply({ content: 'That person isn\'t in this server.', ephemeral: true });
 		}
 
-		// can't kick someone whose role is higher than or equal to your own, discord blocks this anyway
-		// but checking here means we can give a clean error instead of a confusing discord.js one
 		if (!member.kickable) {
 			return interaction.reply({ content: 'I can\'t kick that person, they might have a higher role than me.', ephemeral: true });
 		}
 
 		await member.kick(reason);
 
-		await interaction.reply(`👢 Kicked **${target.tag}**. Reason: ${reason}`);
+		const embed = baseEmbed()
+			.setTitle('👢 Member Kicked')
+			.addFields(
+				{ name: 'User', value: `${target.tag}`, inline: true },
+				{ name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
+				{ name: 'Reason', value: reason },
+			);
+
+		await interaction.reply({ embeds: [embed] });
 	},
 };
