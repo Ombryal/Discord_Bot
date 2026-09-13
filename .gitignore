@@ -1,0 +1,24 @@
+# stuff we don't want in the repo
+
+# installed packages - way too big, gets rebuilt automatically anyway
+node_modules/
+
+# secrets live here, never push this
+.env
+
+# local db files, these get created automatically when the bot runs
+*.sqlite
+*.sqlite3
+/data/
+
+# random log files
+*.log
+npm-debug.log*
+
+# mac/windows junk
+.DS_Store
+Thumbs.db
+
+# editor settings folders
+.vscode/
+.idea/
