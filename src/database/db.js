@@ -19,4 +19,16 @@ db.exec(`
 	)
 `);
 
+// keeps a running log of every warning given out, so mods can pull someone's history
+db.exec(`
+	CREATE TABLE IF NOT EXISTS warnings (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id TEXT NOT NULL,
+		guild_id TEXT NOT NULL,
+		moderator_id TEXT NOT NULL,
+		reason TEXT NOT NULL,
+		created_at INTEGER NOT NULL
+	)
+`);
+
 module.exports = db;
