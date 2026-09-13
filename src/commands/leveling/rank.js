@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const db = require('../../database/db');
+const { db } = require('../../database/db');
 const { xpForLevel } = require('../../utils/leveling');
 
 module.exports = {
@@ -14,8 +14,11 @@ module.exports = {
 	async execute(interaction) {
 		const target = interaction.options.getUser('user') || interaction.user;
 
-		const row = db.prepare('SELECT * FROM levels WHERE user_id = ? AND guild_id = ?')
-			.get(target.id, interaction.guild.id);
+		const result = await db.execute({
+			sql: 'SELECT * FROM levels WHERE user_id = ? AND guild_id = ?',
+			args: [target.id, interaction.guild.id],
+		});
+		const row = result.rows[0];
 
 		// nobody's talked yet, so there's nothing in the db for them
 		if (!row) {
