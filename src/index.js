@@ -1,61 +1,59 @@
 require('dotenv').config();
-const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
+const express = require('express');
+const cookieSession = require('cookie-session');
+const passport = require('./auth/passport');
 const { initDb } = require('./database/db');
+const authRoutes = require('./routes/auth');
+const dashboardRoutes = require('./routes/dashboard');
 
-const client = new Client({
-	intents: [
-		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMembers,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent,
-		GatewayIntentBits.GuildVoiceStates,
-	],
-	partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
+const app = express();
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '..', 'views'));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.urlencoded({ extended: true }));
+
+// storing the session in an encrypted cookie instead of server memory - this is what
+// makes login work on serverless hosts like vercel, since there's no shared memory
+// between requests there (each request can hit a totally different server instance)
+app.use(cookieSession({
+	name: 'session',
+	keys: [process.env.SESSION_SECRET],
+	maxAge: 24 * 60 * 60 * 1000, // 24 hours
+}));
+
+// cookie-session doesn't have regenerate/save methods that passport expects,
+// this little patch adds fake versions so passport doesn't error out
+app.use((req, res, next) => {
+	if (req.session && !req.session.regenerate) {
+		req.session.regenerate = (cb) => cb();
+	}
+	if (req.session && !req.session.save) {
+		req.session.save = (cb) => cb();
+	}
+	next();
 });
 
-// we'll dump all our slash commands in here so we can find them fast later
-client.commands = new Collection();
+app.use(passport.initialize());
+app.use(passport.session());
 
-// go through every folder inside src/commands and grab each command file automatically
-// this way we never have to manually list commands anywhere else
-const commandsPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(commandsPath);
+app.use('/', authRoutes);
+app.use('/', dashboardRoutes);
 
-for (const folder of commandFolders) {
-	const folderPath = path.join(commandsPath, folder);
-	const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+app.get('/', (req, res) => {
+	res.redirect(req.isAuthenticated() ? '/dashboard' : '/login');
+});
 
-	for (const file of commandFiles) {
-		const filePath = path.join(folderPath, file);
-		const command = require(filePath);
+// making sure our tables exist - safe to call every time since it's all "IF NOT EXISTS"
+initDb().catch(error => console.error('Could not set up the database:', error));
 
-		if ('data' in command && 'execute' in command) {
-			client.commands.set(command.data.name, command);
-		} else {
-			console.warn(`Heads up, ${filePath} is missing "data" or "execute" so I skipped it.`);
-		}
-	}
+// on a normal host (replit, render, etc) we start the server ourselves.
+// on vercel, it imports this file and handles starting things on its own,
+// so we skip app.listen there and just export the app instead
+if (require.main === module) {
+	const PORT = process.env.PORT || 3000;
+	app.listen(PORT, () => console.log(`Dashboard running on port ${PORT}`));
 }
 
-// same idea but for events (like "bot turned on" or "someone ran a command")
-const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
-for (const file of eventFiles) {
-	const filePath = path.join(eventsPath, file);
-	const event = require(filePath);
-
-	if (event.once) {
-		client.once(event.name, (...args) => event.execute(...args, client));
-	} else {
-		client.on(event.name, (...args) => event.execute(...args, client));
-	}
-}
-
-// gotta make sure our tables exist before the bot starts taking commands, otherwise
-// the first /rank or /warn someone runs could crash trying to hit a table that isn't there yet
-initDb()
-	.then(() => client.login(process.env.DISCORD_TOKEN))
-	.catch(error => console.error('Could not set up the database:', error));
+module.exports = app;
