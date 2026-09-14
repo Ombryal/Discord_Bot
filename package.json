@@ -10,10 +10,13 @@
     "deploy-commands": "node src/deploy-commands.js"
   },
   "dependencies": {
-    "discord.js": "^14.16.3",
-    "better-sqlite3": "^11.5.0",
+    "express": "^4.21.1",
+    "cookie-session": "^2.1.0",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "@libsql/client": "^0.14.0",
     "dotenv": "^16.4.5",
-    "node-cron": "^3.0.3"
+    "ejs": "^3.1.10"
   },
   "engines": {
     "node": ">=18.0.0"

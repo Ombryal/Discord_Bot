@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { baseEmbed } = require('../../utils/embeds');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -18,8 +19,6 @@ module.exports = {
 		const target = interaction.options.getUser('user');
 		const reason = interaction.options.getString('reason') || 'No reason given';
 
-		// unlike kick, we can ban people who aren't even in the server (useful for raid cleanup)
-		// so we try to fetch the member but don't require them to exist
 		const member = await interaction.guild.members.fetch(target.id).catch(() => null);
 
 		if (member && !member.bannable) {
@@ -28,6 +27,14 @@ module.exports = {
 
 		await interaction.guild.members.ban(target.id, { reason });
 
-		await interaction.reply(`🔨 Banned **${target.tag}**. Reason: ${reason}`);
+		const embed = baseEmbed()
+			.setTitle('🔨 Member Banned')
+			.addFields(
+				{ name: 'User', value: `${target.tag}`, inline: true },
+				{ name: 'Moderator', value: `${interaction.user.tag}`, inline: true },
+				{ name: 'Reason', value: reason },
+			);
+
+		await interaction.reply({ embeds: [embed] });
 	},
 };

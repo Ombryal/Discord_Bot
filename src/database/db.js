@@ -1,34 +1,47 @@
-const path = require('node:path');
-const Database = require('better-sqlite3');
+const { createClient } = require('@libsql/client');
 
-// this file just gets created automatically the first time the bot runs, no setup needed on my end (Yehhhh)
-const db = new Database(path.join(__dirname, '..', '..', 'nexus.sqlite'));
+// this connects to our cloud database on Turso instead of a local file
+// means both the bot AND the future website can read/write the same data
+const db = createClient({
+	url: process.env.TURSO_DATABASE_URL,
+	authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
-// makes writes way more reliable if the bot ever crashes mid-save
-db.pragma('journal_mode = WAL');
+// creates our tables if they don't already exist yet, safe to run every time the bot starts
+async function initDb() {
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS levels (
+			user_id TEXT NOT NULL,
+			guild_id TEXT NOT NULL,
+			xp INTEGER NOT NULL DEFAULT 0,
+			level INTEGER NOT NULL DEFAULT 0,
+			last_message_at INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (user_id, guild_id)
+		)
+	`);
 
-// one row per user per server, since someone's level should be different in each server
-db.exec(`
-	CREATE TABLE IF NOT EXISTS levels (
-		user_id TEXT NOT NULL,
-		guild_id TEXT NOT NULL,
-		xp INTEGER NOT NULL DEFAULT 0,
-		level INTEGER NOT NULL DEFAULT 0,
-		last_message_at INTEGER NOT NULL DEFAULT 0,
-		PRIMARY KEY (user_id, guild_id)
-	)
-`);
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS warnings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT NOT NULL,
+			guild_id TEXT NOT NULL,
+			moderator_id TEXT NOT NULL,
+			reason TEXT NOT NULL,
+			created_at INTEGER NOT NULL
+		)
+	`);
 
-// keeps a running log of every warning given out, so mods can pull someone's history
-db.exec(`
-	CREATE TABLE IF NOT EXISTS warnings (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id TEXT NOT NULL,
-		guild_id TEXT NOT NULL,
-		moderator_id TEXT NOT NULL,
-		reason TEXT NOT NULL,
-		created_at INTEGER NOT NULL
-	)
-`);
+	// holds per-server config, one row per server. the dashboard writes to this,
+	// the bot reads from it
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS guild_settings (
+			guild_id TEXT PRIMARY KEY,
+			warn_limit INTEGER NOT NULL DEFAULT 3,
+			warn_action TEXT NOT NULL DEFAULT 'none',
+			mod_log_channel_id TEXT,
+			updated_at INTEGER
+		)
+	`);
+}
 
-module.exports = db;
+module.exports = { db, initDb };

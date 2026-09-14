@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../database/db');
+const { db } = require('../../database/db');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -19,13 +19,19 @@ module.exports = {
 		const target = interaction.options.getUser('user');
 		const reason = interaction.options.getString('reason');
 
-		db.prepare(`
-			INSERT INTO warnings (user_id, guild_id, moderator_id, reason, created_at)
-			VALUES (?, ?, ?, ?, ?)
-		`).run(target.id, interaction.guild.id, interaction.user.id, reason, Date.now());
+		await db.execute({
+			sql: `
+				INSERT INTO warnings (user_id, guild_id, moderator_id, reason, created_at)
+				VALUES (?, ?, ?, ?, ?)
+			`,
+			args: [target.id, interaction.guild.id, interaction.user.id, reason, Date.now()],
+		});
 
-		const totalWarnings = db.prepare('SELECT COUNT(*) AS count FROM warnings WHERE user_id = ? AND guild_id = ?')
-			.get(target.id, interaction.guild.id).count;
+		const countResult = await db.execute({
+			sql: 'SELECT COUNT(*) AS count FROM warnings WHERE user_id = ? AND guild_id = ?',
+			args: [target.id, interaction.guild.id],
+		});
+		const totalWarnings = countResult.rows[0].count;
 
 		await interaction.reply(`⚠️ Warned **${target.tag}**. Reason: ${reason}\nThey now have **${totalWarnings}** warning(s).`);
 
