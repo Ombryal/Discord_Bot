@@ -30,6 +30,18 @@ async function initDb() {
 			created_at INTEGER NOT NULL
 		)
 	`);
+
+	// holds per-server config, one row per server. the dashboard writes to this,
+	// the bot reads from it
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS guild_settings (
+			guild_id TEXT PRIMARY KEY,
+			warn_limit INTEGER NOT NULL DEFAULT 3,
+			warn_action TEXT NOT NULL DEFAULT 'none',
+			mod_log_channel_id TEXT,
+			updated_at INTEGER
+		)
+	`);
 }
 
 module.exports = { db, initDb };
